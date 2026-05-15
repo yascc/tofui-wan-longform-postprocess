@@ -21,16 +21,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /workspace
 
-# Model weights — much smaller than the worker:
-#   - RIFE: ~50 MB
-#   - RealESRGAN_x2.pth: ~64 MB
-# Final image footprint dominated by the CUDA base, not the models.
+# Model weights bake. Originally specced to also pull RIFE weights but
+# megvii-research/ECCV2022-RIFE has no v4.0 release asset (only the
+# arxiv_v5_code pre-release from 2021 — RIFE weights are distributed via
+# Google Drive in the upstream README, not GitHub releases). Day 18 (when
+# rife_interpolate() in postprocess.py stops being a stub) will resolve
+# the source — likely an HF mirror, hzwer/Practical-RIFE, or wiring up
+# ComfyUI-Frame-Interpolation's auto-download. For now bake only Real-ESRGAN.
+#
+# RealESRGAN_x2plus.pth ~64 MB. Real-ESRGAN URL verified 2026-05-15.
 RUN mkdir -p /workspace/models && \
     wget -q -O /workspace/models/RealESRGAN_x2.pth \
-        "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth" && \
-    wget -q -O /workspace/models/rife.zip \
-        "https://github.com/megvii-research/ECCV2022-RIFE/releases/download/2.x/v4.0.zip" && \
-    cd /workspace/models && unzip rife.zip && rm rife.zip
+        "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
 
 COPY requirements-postprocess.txt /workspace/requirements-postprocess.txt
 RUN pip install --no-cache-dir -r /workspace/requirements-postprocess.txt
