@@ -27,6 +27,10 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v10
         with:
+          # Mount the freed space AT /var/lib/docker — see worker repo's
+          # workflow for the rationale. Postprocess image is small so this
+          # is less critical, but kept for symmetry + future headroom.
+          build-mount-path: '/var/lib/docker'
           root-reserve-mb: 4096
           swap-size-mb: 1024
           remove-dotnet: 'true'
