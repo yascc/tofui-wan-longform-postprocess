@@ -1,21 +1,41 @@
+# Build and push the postprocess image to GHCR.
+#
+# Image is small (~2-3 GB) so the disk-maximization step isn't strictly
+# required, but kept for symmetry with the worker repo's workflow and to
+# give headroom if model weights ever grow.
+
 name: build-and-push
 
 on:
   push:
     tags: ['v*.*.*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semver version to publish (no leading v, e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120         # postprocess image is small; should finish in ~20 min
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 4096
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -27,9 +47,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from tag
+      - name: Resolve version
         id: meta
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
 
       - name: Build and push
         uses: docker/build-push-action@v5
